@@ -1,0 +1,26 @@
+[package]
+name = "peersync-wasm"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Minimal iroh WASM shim for PeerSync (Web), exposed to JS via wasm-bindgen."
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Use iroh 1.x so the relay/handshake wire protocol matches the Android app (iroh core 1.2.0)
+# and the Windows/iOS apps (iroh 1.4.x).
+# Browser (wasm32) builds must disable default-features (per the official docs).
+iroh = { version = "1", default-features = false, features = ["tls-ring"] }
+wasm-bindgen = "0.2.130"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+getrandom = { version = "0.2", features = ["js"] }
+n0-future = "0.3"
+hex = "0.4"
+
+[profile.release]
+opt-level = "s"
+lto = true

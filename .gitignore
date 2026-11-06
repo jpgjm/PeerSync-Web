@@ -1,0 +1,5 @@
+wasm/peersync-wasm/target/
+web/node_modules/
+web/dist/
+# Generated output (CI regenerates it with wasm-bindgen)
+web/src/wasm/

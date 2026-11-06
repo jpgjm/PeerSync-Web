@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>PeerSync Web</title>
+  </head>
+  <body>
+    <!--
+      Components are Material Web (@material/web). Icons are written as <md-icon data-icon="name"> and filled
+      with the SVGs in ui/icons.ts at startup (no external fonts).
+      The layout follows the app: Device Hub | Settings in the navigation bar, History and Logs as detail screens.
+    -->
+    <div id="app">
+      <!-- Top bar of the two tabs (detail screens have their own) -->
+      <header id="home-bar" class="top-bar">
+        <h1 class="app-title">PeerSync <span class="web-badge">Web</span></h1>
+        <md-icon-button id="open-history" aria-label="History" title="History">
+          <md-icon data-icon="history"></md-icon>
+        </md-icon-button>
+      </header>
+
+      <main>
+        <!-- Device Hub -->
+        <section id="tab-hub" class="tab" aria-labelledby="nav-hub">
+          <div class="card">
+            <h2 class="card-title">This device</h2>
+            <div class="status-row">
+              <span id="status" class="status-text" role="status">Stopped</span>
+              <md-icon-button id="restart" aria-label="Restart" title="Restart">
+                <md-icon data-icon="restartAlt"></md-icon>
+              </md-icon-button>
+            </div>
+            <!-- device ID: tapping the whole chip copies it (like the app) -->
+            <button id="my-id" class="id-chip" type="button" title="Copy" aria-label="Copy device ID">
+              <md-ripple></md-ripple><md-focus-ring></md-focus-ring>
+              <md-icon data-icon="contentCopy"></md-icon>
+              <span id="my-id-text"></span>
+            </button>
+            <div class="icon-row">
+              <md-icon-button id="show-qr" aria-label="Show QR code" title="Show QR code">
+                <md-icon data-icon="qrCode"></md-icon>
+              </md-icon-button>
+              <md-icon-button id="share-code" aria-label="Share" title="Share" hidden>
+                <md-icon data-icon="share"></md-icon>
+              </md-icon-button>
+              <md-icon-button id="copy-code" aria-label="Copy" title="Copy" hidden>
+                <md-icon data-icon="contentCopy"></md-icon>
+              </md-icon-button>
+            </div>
+          </div>
+
+          <h2 class="section-title">Paired devices</h2>
+          <p id="peer-empty" class="supporting">
+            No devices yet. When you add a device, it gets a pairing request and shows up here once it's allowed.
+          </p>
+          <ul id="peer-list" class="card-list"></ul>
+
+          <h2 id="pending-title" class="section-title" hidden>Pending</h2>
+          <ul id="pending-list" class="card-list"></ul>
+        </section>
+
+        <!-- Settings -->
+        <section id="tab-settings" class="tab" aria-labelledby="nav-settings" hidden>
+          <div class="card">
+            <h2 class="card-title">Device name</h2>
+            <p id="name-desc" class="supporting"></p>
+            <div class="action-row">
+              <span id="name-value" class="value"></span>
+              <span class="v-divider" aria-hidden="true"></span>
+              <md-icon-button id="edit-name" aria-label="Change" title="Change">
+                <md-icon data-icon="edit"></md-icon>
+              </md-icon-button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Relay</h2>
+            <p class="supporting">The browser always connects through a relay (no direct connections).</p>
+            <div class="action-row">
+              <span id="relay-value" class="value"></span>
+              <span class="v-divider" aria-hidden="true"></span>
+              <md-icon-button id="edit-relay" aria-label="Change" title="Change">
+                <md-icon id="relay-icon" data-icon="changeCircle"></md-icon>
+              </md-icon-button>
+            </div>
+            <div class="action-row">
+              <div class="grow">
+                <div class="row-title">Reset device ID</div>
+                <div class="supporting">Gives this device a new ID. Paired devices are unpaired.</div>
+              </div>
+              <span class="v-divider" aria-hidden="true"></span>
+              <md-icon-button id="reset-id" aria-label="Reset device ID" title="Reset device ID">
+                <md-icon data-icon="lockReset"></md-icon>
+              </md-icon-button>
+              <span id="reset-progress" class="spinner-box" hidden>
+                <md-circular-progress indeterminate aria-label="Resetting device ID"></md-circular-progress>
+              </span>
+            </div>
+          </div>
+
+          <button id="open-logs" class="card card-button" type="button">
+            <md-ripple></md-ripple><md-focus-ring></md-focus-ring>
+            <span class="grow">
+              <span class="card-title">Logs</span>
+              <span class="supporting">Shows the in-app log.</span>
+            </span>
+            <md-icon data-icon="chevronRight"></md-icon>
+          </button>
+        </section>
+
+        <!-- History (detail screen) -->
+        <section id="history" class="detail" hidden>
+          <header class="top-bar detail-bar">
+            <md-icon-button id="history-back" aria-label="Back" title="Back">
+              <md-icon data-icon="arrowBack"></md-icon>
+            </md-icon-button>
+            <h1 class="detail-title">History</h1>
+            <md-icon-button id="history-clear" aria-label="Clear all" title="Clear all">
+              <md-icon data-icon="delete"></md-icon>
+            </md-icon-button>
+          </header>
+          <md-tabs id="history-tabs" aria-label="History">
+            <md-primary-tab id="tab-transfers">Transfers</md-primary-tab>
+            <md-primary-tab id="tab-pairing">Pairing</md-primary-tab>
+          </md-tabs>
+          <div class="detail-body">
+            <ul id="transfer-list" class="card-list"></ul>
+            <p id="transfer-empty" class="empty-center">No transfers yet.</p>
+            <ul id="pairing-list" class="card-list" hidden></ul>
+            <p id="pairing-empty" class="empty-center" hidden>No pairing history yet.</p>
+          </div>
+        </section>
+
+        <!-- Logs (detail screen) -->
+        <section id="logs" class="detail" hidden>
+          <header class="top-bar detail-bar">
+            <md-icon-button id="logs-back" aria-label="Back" title="Back">
+              <md-icon data-icon="arrowBack"></md-icon>
+            </md-icon-button>
+            <h1 class="detail-title">Logs</h1>
+            <md-icon-button id="logs-copy" aria-label="Copy" title="Copy">
+              <md-icon data-icon="contentCopy"></md-icon>
+            </md-icon-button>
+            <md-icon-button id="logs-clear" aria-label="Clear" title="Clear">
+              <md-icon data-icon="delete"></md-icon>
+            </md-icon-button>
+          </header>
+          <div class="detail-body">
+            <pre id="log" tabindex="0" aria-label="Logs"></pre>
+          </div>
+        </section>
+      </main>
+
+      <!-- Add device (Device Hub only) -->
+      <md-fab id="add-fab" variant="primary" aria-label="Add device" title="Add device" aria-haspopup="menu">
+        <md-icon slot="icon" id="add-fab-icon" data-icon="add"></md-icon>
+      </md-fab>
+      <md-menu id="add-menu" anchor="add-fab" anchor-corner="start-end" menu-corner="end-end" positioning="fixed">
+        <md-menu-item id="add-qr">
+          <md-icon slot="start" data-icon="qrCodeScanner"></md-icon>
+          <div slot="headline">Add by QR code</div>
+        </md-menu-item>
+        <md-menu-item id="add-manual">
+          <md-icon slot="start" data-icon="keyboard"></md-icon>
+          <div slot="headline">Enter manually</div>
+        </md-menu-item>
+      </md-menu>
+
+      <nav class="nav-wrap">
+        <md-navigation-bar id="nav" aria-label="Screens">
+          <md-navigation-tab id="nav-hub" label="Device Hub">
+            <md-icon slot="active-icon" data-icon="deviceHubFill"></md-icon>
+            <md-icon slot="inactive-icon" data-icon="deviceHub"></md-icon>
+          </md-navigation-tab>
+          <md-navigation-tab id="nav-settings" label="Settings">
+            <md-icon slot="active-icon" data-icon="settingsFill"></md-icon>
+            <md-icon slot="inactive-icon" data-icon="settings"></md-icon>
+          </md-navigation-tab>
+        </md-navigation-bar>
+      </nav>
+    </div>
+
+    <!-- This device's QR code -->
+    <md-dialog id="qr-dialog">
+      <div slot="headline">This device's QR code</div>
+      <form slot="content" id="qr-form" method="dialog" class="qr-wrap">
+        <canvas id="my-qr" aria-label="QR code for pairing"></canvas>
+      </form>
+      <div slot="actions">
+        <md-text-button form="qr-form" value="close">Close</md-text-button>
+      </div>
+    </md-dialog>
+
+    <!-- Scan a QR code -->
+    <md-dialog id="scan-dialog">
+      <div slot="headline">Add by QR code</div>
+      <div slot="content" class="scan-content">
+        <video id="scan-video" playsinline muted></video>
+        <p class="supporting">Scan the QR code shown in PeerSync on the other device.</p>
+      </div>
+      <div slot="actions">
+        <md-text-button id="scan-stop">Cancel</md-text-button>
+      </div>
+    </md-dialog>
+
+    <!-- Add device (manual entry, also opened after a QR scan) -->
+    <md-dialog id="add-dialog">
+      <div slot="headline">Add device</div>
+      <form slot="content" id="add-form" method="dialog">
+        <md-outlined-text-field
+          id="add-id"
+          type="textarea"
+          rows="3"
+          label="Device ID of the other device"
+          placeholder="peersync:… or a 64-character ID"
+        ></md-outlined-text-field>
+        <md-outlined-text-field id="add-name" label="Name (e.g. arrows)" maxlength="64"></md-outlined-text-field>
+      </form>
+      <div slot="actions">
+        <md-text-button form="add-form" value="cancel">Cancel</md-text-button>
+        <md-text-button id="add-ok" form="add-form" value="ok">Add</md-text-button>
+      </div>
+    </md-dialog>
+
+    <!-- Send (choose what to send) -->
+    <md-dialog id="send-menu">
+      <div slot="headline" id="send-menu-title">Send</div>
+      <div slot="content">
+        <p class="supporting">Choose what to send.</p>
+        <!-- the picker opens inside the click on these items (Safari etc. won't open it after the menu closes) -->
+        <md-list class="send-choices">
+          <md-list-item type="button" id="send-files-choice">
+            <md-icon slot="start" data-icon="attachFile"></md-icon>
+            <div slot="headline">Files</div>
+          </md-list-item>
+          <md-list-item type="button" id="send-folder-choice">
+            <md-icon slot="start" data-icon="driveFolderUpload"></md-icon>
+            <div slot="headline">Folder</div>
+          </md-list-item>
+          <md-list-item type="button" id="send-text-choice">
+            <md-icon slot="start" data-icon="notes"></md-icon>
+            <div slot="headline">Text</div>
+          </md-list-item>
+        </md-list>
+      </div>
+      <div slot="actions">
+        <md-text-button id="send-menu-cancel">Cancel</md-text-button>
+      </div>
+    </md-dialog>
+    <input id="pick-files" type="file" multiple hidden />
+    <input id="pick-folder" type="file" webkitdirectory hidden />
+
+    <!-- Send text -->
+    <md-dialog id="text-dialog">
+      <div slot="headline" id="text-title"></div>
+      <form slot="content" id="text-form" method="dialog">
+        <md-outlined-text-field
+          id="text-input"
+          type="textarea"
+          rows="6"
+          placeholder="Text to send (multiple lines OK)"
+          aria-label="Text to send"
+        ></md-outlined-text-field>
+      </form>
+      <div slot="actions">
+        <md-text-button form="text-form" value="cancel">Cancel</md-text-button>
+        <md-text-button id="text-send" form="text-form" value="ok">Send</md-text-button>
+      </div>
+    </md-dialog>
+
+    <!-- One-line input (device name, relay URL) -->
+    <md-dialog id="input-dialog">
+      <div slot="headline" id="input-title"></div>
+      <form slot="content" id="input-form" method="dialog">
+        <md-outlined-text-field id="input-text"></md-outlined-text-field>
+      </form>
+      <div slot="actions">
+        <md-text-button form="input-form" value="cancel">Cancel</md-text-button>
+        <md-text-button id="input-ok" form="input-form" value="ok">OK</md-text-button>
+      </div>
+    </md-dialog>
+
+    <!-- Received text -->
+    <md-dialog id="incoming-dialog">
+      <div slot="headline" id="incoming-title"></div>
+      <form slot="content" id="incoming-form" method="dialog">
+        <p id="incoming-question" class="supporting"></p>
+        <div id="incoming-texts"></div>
+      </form>
+      <div slot="actions">
+        <md-text-button form="incoming-form" value="close">Close</md-text-button>
+        <md-text-button id="incoming-copy" type="button">Copy</md-text-button>
+      </div>
+    </md-dialog>
+
+    <!-- Pairing request (from another device) -->
+    <md-dialog id="pair-dialog" type="alert">
+      <div slot="headline">Pair with this device?</div>
+      <form slot="content" id="pair-form" method="dialog">
+        <p id="pair-body" class="dialog-body"></p>
+      </form>
+      <div slot="actions">
+        <md-text-button form="pair-form" value="cancel">Cancel</md-text-button>
+        <md-text-button form="pair-form" value="allow">Allow</md-text-button>
+      </div>
+    </md-dialog>
+
+    <!-- Files offered (from another device) -->
+    <md-dialog id="files-dialog" type="alert">
+      <div slot="headline" id="files-title"></div>
+      <form slot="content" id="files-form" method="dialog">
+        <p id="files-question"></p>
+        <ul id="files-list" class="offer-list"></ul>
+        <p id="files-note" class="supporting offer-note"></p>
+      </form>
+      <div slot="actions">
+        <md-text-button form="files-form" value="reject">Decline</md-text-button>
+        <md-text-button form="files-form" value="accept">Accept</md-text-button>
+      </div>
+    </md-dialog>
+
+    <div id="snackbar" role="status" aria-live="polite" hidden>
+      <span id="snackbar-text"></span>
+      <md-text-button id="snackbar-action" hidden></md-text-button>
+      <md-icon-button id="snackbar-close" aria-label="Close" title="Close">
+        <md-icon data-icon="close"></md-icon>
+      </md-icon-button>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
